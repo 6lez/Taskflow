@@ -1,3 +1,12 @@
 taskflow/__pycache__/models.cpython-313.pyc
 taskflow/__pycache__/database.cpython-313.pyc
 taskflow/__pycache__/__init__.cpython-313.pyc
+.idea/dataSources.xml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/Taskflow.iml
+.idea/vcs.xml
+taskflow/repositories/__pycache__/__init__.cpython-313.pyc
+taskflow/repositories/__pycache__/task_repo.cpython-313.pyc
