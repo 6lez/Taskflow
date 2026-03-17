@@ -43,7 +43,7 @@ class ProjectRepository:
             print(e)
 
     def get_all(self) -> list[Project]:
-        #Получает все проекты.
+        # Получает все проекты.
         try:
             cursor = self.db.execute('SELECT * FROM projects ORDER BY name ASC')
             rows = cursor.fetchall()
@@ -78,4 +78,4 @@ class ProjectRepository:
         return Project(id=row["id"],
                        name=row["name"],
                        description=row["description"],
-                       created_at=row["created_at"],)
+                       created_at=row["created_at"])
