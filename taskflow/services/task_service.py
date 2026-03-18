@@ -1,14 +1,10 @@
 """Бизнес-логика для управления задачами."""
 
 from datetime import datetime
-
-import taskflow.models
 from taskflow.models import Task
-from taskflow.repositories import project_repo, task_repo
 from taskflow.repositories.task_repo import TaskRepository
 from taskflow.repositories.project_repo import ProjectRepository
 from taskflow.repositories.tag_repo import TagRepository
-
 
 class TaskService:
     # Сервис управления задачами.
@@ -33,21 +29,25 @@ class TaskService:
         if priority not in self.VALID_PRIORITIES:
             raise ValueError(f'Приоритет должен быть в виде: {self.VALID_PRIORITIES}')
 
+        parsed_deadline = None
         if deadline is not None:
             try:
-                datetime.strptime(deadline, "%Y-%m-%d")
-            except ValueError as e:
-                print('Формат дедлайна должен быть в виде YYYY-MM-DD')
+                parsed_deadline = datetime.strptime(deadline, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError("Формат дедлайна: YYYY-MM-DD")
 
+        project_id = None
         if project_name is not None:
-            if self.project_repo.get_by_name(project_name) is None:
-                raise ValueError(f'Проект {project_name} не найден!')
+            project = self.project_repo.get_by_name(project_name)
+            if project is None:
+                raise ValueError(f"Проект '{project_name}' не найден!")
+            project_id = project.id
 
         task_id = self.task_repo.add(Task(title=title,
                                           priority=priority,
                                           description=description,
-                                          deadline=deadline,
-                                          project_name=project_name))
+                                          deadline=parsed_deadline,
+                                          project_name=project_id))
         return task_id
 
     def complete_task(self, task_id: int) -> Task:
