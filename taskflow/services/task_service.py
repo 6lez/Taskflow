@@ -47,7 +47,7 @@ class TaskService:
                                           priority=priority,
                                           description=description,
                                           deadline=parsed_deadline,
-                                          project_name=project_id))
+                                          project_id=project_id))
         return task_id
 
     def complete_task(self, task_id: int) -> Task:
