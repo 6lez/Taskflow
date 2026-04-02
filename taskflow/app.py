@@ -74,7 +74,6 @@ def create_parser() -> argparse.ArgumentParser:
     untag_parser.add_argument("tag_name", help="Название тега")
     # Команда: tags
     subparsers.add_parser("tags", help="Показать все теги")
-
     return parser
 
 def display_tasks(tasks, tag_repo=None):
@@ -94,8 +93,12 @@ def display_tasks(tasks, tag_repo=None):
         "cancelled": "❌"
     }
     print(f"\n📋 Список задач ({len(tasks)}):\n")
-    print(f" {'ID':>3} │ {'Название':<25}│ {'Приоритет':<12}│ {'Статус':<13}│ {'Дедлайн':<14}│ {'Теги':<14}")
-    print(f"{'─' * 4}┼{'─' * 26}┼{'─' * 13}┼{'─' * 14}┼{'─' * 15}┼{'─' * 15}")
+    if tag_repo:
+        print(f" {'ID':>3} │ {'Название':<25}│ {'Приоритет':<12}│ {'Статус':<13}│ {'Дедлайн':<14}│ {'Теги':<14}")
+        print(f"{'─' * 4}┼{'─' * 26}┼{'─' * 13}┼{'─' * 14}┼{'─' * 15}┼{'─' * 15}")
+    else:
+        print(f" {'ID':>3} │ {'Название':<25}│ {'Приоритет':<12}│ {'Статус':<13}│ {'Дедлайн':<14}")
+        print(f"{'─' * 4}┼{'─' * 26}┼{'─' * 13}┼{'─' * 14}┼{'─' * 15}")
     for task in tasks:
         # Иконка приоритета
         icon = priority_icons.get(task.priority, "⚪")
@@ -103,8 +106,6 @@ def display_tasks(tasks, tag_repo=None):
         # Иконка статуса
         status_icon = status_icons.get(task.status, "❓")
         status_str = f"{status_icon} {task.status}"
-        if tag_repo:
-            tags = ', '.join(tag_repo.get_tags_for_task(task.id))
         if task.deadline:
             if hasattr(task.deadline, 'strftime'):
                 deadline_str = task.deadline.strftime("%d.%m.%Y")
@@ -116,7 +117,14 @@ def display_tasks(tasks, tag_repo=None):
         # Обрезание
         if len(title) > 23:
             title = title[:20] + "..."
-        print(f" {task.id:>3} │ {title:<25}│ {priority_str:<12}│ {status_str:<13}│ {deadline_str:<14}│ {tags:<14}")
+        if tag_repo:
+            task_tags = tag_repo.get_tags_for_task(task.id)
+            tags_str = ", ".join([t.name for t in task_tags]) if task_tags else "—"
+            print(f" {task.id:>3} │ {title:<25}│ {priority_str:<12}│ {status_str:<13}│ {deadline_str:<14}│ {tags_str}")
+            print(f"{'─' * 4}┼{'─' * 26}┼{'─' * 13}┼{'─' * 14}┼{'─' * 15}┼{'─' * 15}")
+        else:
+            print(f" {task.id:>3} │ {title:<25}│ {priority_str:<12}│ {status_str:<13}│ {deadline_str:<14}")
+            print(f"{'─' * 4}┼{'─' * 26}┼{'─' * 13}┼{'─' * 14}┼{'─' * 15}")
     print()
 
 def display_projects(projects):
@@ -171,10 +179,14 @@ def main():
                 if tag is None:
                     print(f"❌ Тег '{args.tag}' не найден")
                     return
-                tagged_task_ids = {t.id for t in ...}  # подумай как получить
-                tasks = [t for t in tasks if t.id in tagged_task_ids]
+                filtered_tasks = []
+                for task in tasks:
+                    task_tags = tag_repo.get_tags_for_task(task.id)
+                    tag_names = [t.name for t in task_tags]
+                    if args.tag in tag_names:
+                        filtered_tasks.append(task)
+                tasks = filtered_tasks
             display_tasks(tasks, tag_repo=tag_repo)
-
         elif args.command == "done":
             service.complete_task(args.id)
             print(f'✅ Задача #{args.id} выполнена!')
@@ -200,6 +212,41 @@ def main():
                     print(f"🗑️ Проект '{args.name}' удалён!")
             else:
                 print("Используйте: project [list|add|delete]")
+        elif args.command == "tag":
+            task = task_repo.get_by_id(args.task_id)
+            if task is None:
+                print(f"❌ Задача #{args.task_id} не найдена!")
+                return
+            tag = tag_repo.get_by_name(args.tag_name)
+            if tag is None:
+                tag_id = tag_repo.add(Tag(name=args.tag_name))
+                print(f"🏷️ Тег '{args.tag_name}' создан")
+            else:
+                tag_id = tag.id
+            tag_repo.add_tag_to_task(args.task_id, tag_id)
+            print(f"✅ Тег '{args.tag_name}' добавлен к задаче #{args.task_id}")
+
+        elif args.command == "untag":
+            tag = tag_repo.get_by_name(args.tag_name)
+            if tag is None:
+                print(f"❌ Тег '{args.tag_name}' не найден!")
+                return
+            removed = tag_repo.remove_tag_from_task(args.task_id, tag.id)
+            if removed:
+                print(f"✅ Тег '{args.tag_name}' убран с задачи #{args.task_id}")
+            else:
+                print(f"❌ У задачи #{args.task_id} нет тега '{args.tag_name}'")
+
+        elif args.command == "tags":
+            tags = tag_repo.get_all()
+            if not tags:
+                print("📭 Тегов не найдено.")
+                return
+            print(f"\n🏷️ Все теги ({len(tags)}):\n")
+            for tag in tags:
+                print(f" {tag.id} |  • {tag.name}")
+            print()
+
         else:
             parser.print_help()
 
