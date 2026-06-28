@@ -316,7 +316,7 @@ def main():
                     output_file = "tasks_export.md"
                 filename = export_service.export_to_markdown(output_file)
                 print(f"✅ Задачи экспортированы в {filename}")
-        
+
         else:
             parser.print_help()
 
