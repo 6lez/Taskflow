@@ -7,6 +7,8 @@ from taskflow.repositories.task_repo import TaskRepository
 from taskflow.repositories.project_repo import ProjectRepository
 from taskflow.repositories.tag_repo import TagRepository
 from taskflow.services.task_service import TaskService
+from taskflow.services.stats_service import StatsService
+from taskflow.services.export_service import ExportService
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -74,6 +76,19 @@ def create_parser() -> argparse.ArgumentParser:
     untag_parser.add_argument("tag_name", help="Название тега")
     # Команда: tags
     subparsers.add_parser("tags", help="Показать все теги")
+    # Команда: stats
+    subparsers.add_parser("stats", help="Показать статистику")
+    # Команда: export
+    export_parser = subparsers.add_parser("export", help="Экспортировать задачи")
+    export_parser.add_argument(
+        "format",
+        choices=["json", "csv", "md"],
+        help="Формат экспорта"
+    )
+    export_parser.add_argument(
+        "--output", "-o",
+        help="Имя файла для экспорта"
+    )
     return parser
 
 def display_tasks(tasks, tag_repo=None):
@@ -154,6 +169,8 @@ def main():
     project_repo = ProjectRepository(db)
     tag_repo = TagRepository(db)
     service = TaskService(task_repo, project_repo, tag_repo)
+    stats_service = StatsService(task_repo, project_repo, tag_repo)
+    export_service = ExportService(task_repo, project_repo, tag_repo)
 
     if not args.command:
         parser.print_help()
@@ -247,6 +264,59 @@ def main():
                 print(f" {tag.id} |  • {tag.name}")
             print()
 
+        elif args.command == "stats":
+            general = stats_service.get_general_stats()
+            by_priority = stats_service.get_stats_by_priority()
+            by_project = stats_service.get_stats_by_project()
+            productivity = stats_service.get_productivity_stats(7)
+
+            print("\n📊 Общая статистика:\n")
+            print(f"  Всего задач: {general['total']}")
+            print(f"  ✅ Выполнено: {general['done']} ({general['completion_rate']}%)")
+            print(f"  🔄 В работе: {general['in_progress']}")
+            print(f"  📌 К выполнению: {general['todo']}")
+            print(f"  ❌ Отменено: {general['cancelled']}")
+            print(f"  ⏰ Просрочено: {general['overdue']}")
+
+            print("\n📈 По приоритетам:\n")
+            print(f"  🔴 Critical: {by_priority['critical']}")
+            print(f"  🟠 High: {by_priority['high']}")
+            print(f"  🟡 Medium: {by_priority['medium']}")
+            print(f"  🟢 Low: {by_priority['low']}")
+
+            print("\n📁 По проектам:\n")
+            for project_name, stats in by_project.items():
+                if stats['total'] > 0:
+                    completion = (stats['done'] / stats['total'] * 100) if stats['total'] > 0 else 0
+                    print(f"  {project_name}: {stats['total']} задач ({completion:.0f}% завершено)")
+
+            print(f"\n⚡ Продуктивность (последние {productivity['days']} дней):\n")
+            print(f"  Создано: {productivity['created']}")
+            print(f"  Завершено: {productivity['completed']}")
+            print(f"  В среднем в день: {productivity['avg_per_day']}")
+            print()
+
+        elif args.command == "export":
+            output_file = args.output
+
+            if args.format == "json":
+                if not output_file:
+                    output_file = "tasks_export.json"
+                filename = export_service.export_to_json(output_file)
+                print(f"✅ Задачи экспортированы в {filename}")
+
+            elif args.format == "csv":
+                if not output_file:
+                    output_file = "tasks_export.csv"
+                filename = export_service.export_to_csv(output_file)
+                print(f"✅ Задачи экспортированы в {filename}")
+
+            elif args.format == "md":
+                if not output_file:
+                    output_file = "tasks_export.md"
+                filename = export_service.export_to_markdown(output_file)
+                print(f"✅ Задачи экспортированы в {filename}")
+        
         else:
             parser.print_help()
 
